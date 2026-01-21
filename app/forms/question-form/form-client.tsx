@@ -39,10 +39,11 @@ export default function FormClient() {
   const sp = useSearchParams();
 
   // ✅ Query params
-  const ticket_id = sp.get("ticket_id") || "";
-  const sender_id = sp.get("sender_id") || "";
+  const ticket_id = sp.get("ticketId") || sp.get("ticket_id") || "";
+  const sender_id = sp.get("senderId") || sp.get("sender_id") || "";
+  const vehicle_type_raw =
+    sp.get("vehicleType") || sp.get("vehicle_type") || "any";
   const token = sp.get("token") || "";
-  const vehicle_type_raw = sp.get("vehicle_type") || "any";
   const location_raw = sp.get("location") || "any";
   const question = sp.get("question") || ""; // ✅ NEW
 
@@ -301,7 +302,7 @@ export default function FormClient() {
                     placeholder="Write answer here... (Bangla/English both OK)"
                     value={answerText}
                     onChange={(e) => setAnswerText(e.target.value)}
-                    className="min-h-[160px]"
+                    className="min-h-40"
                   />
                 </div>
               )}
