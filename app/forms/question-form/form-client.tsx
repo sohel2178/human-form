@@ -55,6 +55,7 @@ export default function FormClient() {
   const sender_id = sp.get("sender_id") || "";
   const vehicle_type_raw = sp.get("vehicle_type") || "any";
   const location_raw = sp.get("location") || "any";
+  const question = sp.get("question") || "";
 
   const vehicle_type = titleCase(vehicle_type_raw);
   const location = titleCase(location_raw);
@@ -253,6 +254,17 @@ export default function FormClient() {
               Select reply mode and submit answer/action.
             </CardDescription>
           </CardHeader>
+
+          {question && (
+            <div className="rounded-2xl border p-4 bg-muted/40">
+              <div className="text-xs font-semibold text-muted-foreground mb-2">
+                Customer Question
+              </div>
+              <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                {question}
+              </div>
+            </div>
+          )}
 
           <CardContent>
             <form onSubmit={handleSubmit} className="grid gap-5">
