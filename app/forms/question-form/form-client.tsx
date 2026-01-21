@@ -38,10 +38,21 @@ function titleCase(str: string) {
 export default function FormClient() {
   const sp = useSearchParams();
 
+  const token = sp.get("token") || "";
+
+  // ✅ UI protection
+  if (!token) {
+    return (
+      <main className="mx-auto max-w-xl p-10">
+        <h2 className="text-2xl font-bold">❌ Unauthorized</h2>
+        <p className="text-muted-foreground">Missing token.</p>
+      </main>
+    );
+  }
+
   // Query params
   const ticket_id = sp.get("ticket_id") || "";
   const sender_id = sp.get("sender_id") || "";
-  const token = sp.get("token") || "";
   const vehicle_type_raw = sp.get("vehicle_type") || "any";
   const location_raw = sp.get("location") || "any";
 
