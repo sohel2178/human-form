@@ -38,47 +38,45 @@ function titleCase(str: string) {
 export default function FormClient() {
   const sp = useSearchParams();
 
-  const token = sp.get("token") || "";
-
-  // ✅ UI protection
-  if (!token) {
-    return (
-      <main className="mx-auto max-w-xl p-10">
-        <h2 className="text-2xl font-bold">❌ Unauthorized</h2>
-        <p className="text-muted-foreground">Missing token.</p>
-      </main>
-    );
-  }
-
-  // Query params
+  // ✅ Query params
   const ticket_id = sp.get("ticket_id") || "";
   const sender_id = sp.get("sender_id") || "";
+  const token = sp.get("token") || "";
   const vehicle_type_raw = sp.get("vehicle_type") || "any";
   const location_raw = sp.get("location") || "any";
-  const question = sp.get("question") || "";
+  const question = sp.get("question") || ""; // ✅ NEW
 
   const vehicle_type = titleCase(vehicle_type_raw);
   const location = titleCase(location_raw);
 
+  // ✅ Form state
   const [mode, setMode] = React.useState<Mode>("text");
   const [actionType, setActionType] = React.useState<ActionType>("none");
   const [answerText, setAnswerText] = React.useState("");
 
   const [loading, setLoading] = React.useState(false);
+  const [submitted, setSubmitted] = React.useState(false);
   const [message, setMessage] = React.useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
 
-  // ✅ if true → hide form and show success card
-  const [submitted, setSubmitted] = React.useState(false);
-
   const showAction = mode === "action" || mode === "both";
-  const showAnswer = mode !== "action"; // ✅ Hide answer in action mode
+  const showAnswer = mode !== "action";
 
   const title = `Question from ${location} for ${vehicle_type}`;
 
-  // ✅ validation logic updated for hide-answer rules
+  // ✅ Client side auth check (UI only)
+  if (!token) {
+    return (
+      <main className="mx-auto max-w-xl p-8">
+        <h2 className="text-2xl font-bold">❌ Unauthorized</h2>
+        <p className="text-muted-foreground mt-2">Missing token in URL.</p>
+      </main>
+    );
+  }
+
+  // ✅ submit rules
   const canSubmit =
     !!ticket_id &&
     !!sender_id &&
@@ -93,19 +91,17 @@ export default function FormClient() {
     e.preventDefault();
     setMessage(null);
 
-    if (!ticket_id || !sender_id || !token) {
+    if (!ticket_id || !sender_id) {
       setMessage({
         type: "error",
-        text: "Missing required parameters in URL (ticket_id / sender_id / token).",
+        text: "Missing ticket_id or sender_id in URL.",
       });
       return;
     }
-
     if (mode === "action" && actionType === "none") {
       setMessage({ type: "error", text: "Please select an action type." });
       return;
     }
-
     if (mode !== "action" && !answerText.trim()) {
       setMessage({ type: "error", text: "Please write an answer." });
       return;
@@ -122,6 +118,7 @@ export default function FormClient() {
           sender_id,
           vehicle_type: vehicle_type_raw,
           location: location_raw,
+          question, // ✅ send question too
           mode,
           action_type: showAction ? actionType : "none",
           answer_text: showAnswer ? answerText : "",
@@ -132,17 +129,11 @@ export default function FormClient() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Submit failed");
 
-      // ✅ Show success screen and hide form
       setSubmitted(true);
       setMessage({
         type: "success",
-        text: "Submitted successfully ✅ User has been replied & saved to DB.",
+        text: "Submitted ✅ User replied + saved to DB.",
       });
-
-      // cleanup local state (optional)
-      setAnswerText("");
-      setActionType("none");
-      setMode("text");
     } catch (err: any) {
       setMessage({
         type: "error",
@@ -155,28 +146,29 @@ export default function FormClient() {
 
   return (
     <main className="mx-auto max-w-3xl p-4 md:p-8">
+      {/* Header */}
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
           {title}
         </h1>
         <p className="text-muted-foreground">
-          Human Answer Panel — choose mode, send action/text, and system will
-          learn automatically.
+          Human Answer Panel — system will reply user and learn automatically.
         </p>
       </div>
 
-      <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="md:col-span-2">
+      {/* Ticket Info */}
+      <div className="mt-5">
+        <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2">
-              Ticket Info
+              Ticket Info{" "}
               <Badge variant="secondary">{ticket_id || "N/A"}</Badge>
             </CardTitle>
             <CardDescription>
-              Open this page only from Telegram link. Don’t change ticket
-              manually 😄
+              Auto-filled from Telegram link query params.
             </CardDescription>
           </CardHeader>
+
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <InfoRow label="Sender ID" value={sender_id || "—"} />
             <InfoRow label="Vehicle Type" value={vehicle_type} />
@@ -187,52 +179,22 @@ export default function FormClient() {
             />
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle>Quick Rules</CardTitle>
-            <CardDescription>Mode behavior</CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm space-y-2">
-            <p>
-              • <b>text</b> → send answer only
-            </p>
-            <p>
-              • <b>action</b> → send media only
-            </p>
-            <p>
-              • <b>both</b> → media first, then answer
-            </p>
-          </CardContent>
-        </Card>
       </div>
 
       <Separator className="my-6" />
 
-      {/* ✅ SUCCESS SCREEN */}
+      {/* ✅ Success screen */}
       {submitted ? (
         <Card className="border-2">
           <CardHeader>
             <CardTitle className="text-xl">✅ Submission Completed</CardTitle>
-            <CardDescription>
-              This ticket is processed successfully. You can close this tab now.
-            </CardDescription>
+            <CardDescription>You can close this tab now.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Alert>
               <AlertTitle>Success</AlertTitle>
-              <AlertDescription>
-                The user has been replied and the answer has been saved to
-                MongoDB knowledge base.
-              </AlertDescription>
+              <AlertDescription>{message?.text || "Done ✅"}</AlertDescription>
             </Alert>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <InfoRow label="Ticket ID" value={ticket_id} />
-              <InfoRow label="Mode" value={mode} />
-              <InfoRow label="Action Type" value={actionType} />
-              <InfoRow label="District" value={location} />
-            </div>
 
             <Button
               className="rounded-2xl font-bold w-full"
@@ -240,10 +202,6 @@ export default function FormClient() {
             >
               Close Tab
             </Button>
-
-            <p className="text-xs text-muted-foreground text-center">
-              If tab doesn’t close automatically, you can close it manually.
-            </p>
           </CardContent>
         </Card>
       ) : (
@@ -251,23 +209,32 @@ export default function FormClient() {
           <CardHeader>
             <CardTitle>Human Reply</CardTitle>
             <CardDescription>
-              Select reply mode and submit answer/action.
+              Choose mode and submit answer/action.
             </CardDescription>
           </CardHeader>
 
-          {question && (
-            <div className="rounded-2xl border p-4 bg-muted/40">
-              <div className="text-xs font-semibold text-muted-foreground mb-2">
-                Customer Question
-              </div>
-              <div className="text-sm leading-relaxed whitespace-pre-wrap">
-                {question}
-              </div>
-            </div>
-          )}
-
           <CardContent>
+            {/* ✅ show Question inside Human Reply */}
+            {question ? (
+              <div className="mb-5 rounded-2xl border p-4 bg-muted/30">
+                <div className="text-xs text-muted-foreground mb-1">
+                  Customer Question
+                </div>
+                <div className="font-semibold leading-relaxed whitespace-pre-wrap">
+                  {question}
+                </div>
+              </div>
+            ) : (
+              <div className="mb-5 rounded-2xl border p-4 bg-muted/30">
+                <div className="text-xs text-muted-foreground mb-1">
+                  Customer Question
+                </div>
+                <div className="font-semibold">—</div>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="grid gap-5">
+              {/* Mode + Action */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Mode</Label>
@@ -299,6 +266,7 @@ export default function FormClient() {
                       </Badge>
                     )}
                   </Label>
+
                   <Select
                     value={actionType}
                     onValueChange={(v) => setActionType(v as ActionType)}
@@ -322,11 +290,6 @@ export default function FormClient() {
                       <SelectItem value="none">none</SelectItem>
                     </SelectContent>
                   </Select>
-                  {!showAction && (
-                    <p className="text-xs text-muted-foreground">
-                      For <b>text</b> mode action is disabled.
-                    </p>
-                  )}
                 </div>
               </div>
 
@@ -340,10 +303,6 @@ export default function FormClient() {
                     onChange={(e) => setAnswerText(e.target.value)}
                     className="min-h-[160px]"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    For <b>both</b> mode: action will be sent first, then
-                    answer.
-                  </p>
                 </div>
               )}
 
@@ -358,19 +317,13 @@ export default function FormClient() {
                 </Alert>
               )}
 
-              <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-                <Button
-                  type="submit"
-                  disabled={!canSubmit || loading}
-                  className="rounded-2xl font-bold"
-                >
-                  {loading ? "Submitting..." : "Submit Reply"}
-                </Button>
-
-                <p className="text-xs text-muted-foreground">
-                  Tip: Action mode will hide answer field automatically ✅
-                </p>
-              </div>
+              <Button
+                type="submit"
+                disabled={!canSubmit || loading}
+                className="rounded-2xl font-bold"
+              >
+                {loading ? "Submitting..." : "Submit Reply"}
+              </Button>
             </form>
           </CardContent>
         </Card>
