@@ -4,7 +4,17 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const expected = process.env.FORM_ACCESS_TOKEN || "";
+    const expected = (process.env.FORM_ACCESS_TOKEN || "").trim();
+
+    const normalizeToken = (t: string) =>
+      (t || "")
+        .trim()
+        .replace(/\s+/g, "") // remove spaces/newline
+        .replace(/_/g, ""); // Telegram removes underscores sometimes
+
+    const receivedToken = normalizeToken(body.token);
+    const expectedToken = normalizeToken(expected);
+
     if (!expected) {
       return NextResponse.json(
         { error: "Missing server token config" },
@@ -12,8 +22,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ token check
-    if (!body.token || body.token !== expected) {
+    // ✅ token check (Telegram-safe)
+    if (!receivedToken || receivedToken !== expectedToken) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
