@@ -6,14 +6,10 @@ export async function POST(req: Request) {
 
     const expected = (process.env.FORM_ACCESS_TOKEN || "").trim();
 
-    const normalizeToken = (t: string) =>
-      (t || "")
-        .trim()
-        .replace(/\s+/g, "") // remove spaces/newline
-        .replace(/_/g, ""); // Telegram removes underscores sometimes
+    const received = (body.token || "").trim();
 
-    const receivedToken = normalizeToken(body.token);
-    const expectedToken = normalizeToken(expected);
+    const expectedAlt = expected.replace(/_/g, ""); // Telegram version
+    const receivedAlt = received.replace(/_/g, "");
 
     if (!expected) {
       return NextResponse.json(
@@ -22,8 +18,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ token check (Telegram-safe)
-    if (!receivedToken || receivedToken !== expectedToken) {
+    if (!received || (received !== expected && receivedAlt !== expectedAlt)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
