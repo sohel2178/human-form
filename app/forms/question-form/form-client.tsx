@@ -39,10 +39,15 @@ export default function FormClient() {
   const sp = useSearchParams();
 
   // ✅ Query params
-  const ticket_id = sp.get("ticketId") || sp.get("ticket_id") || "";
-  const sender_id = sp.get("senderId") || sp.get("sender_id") || "";
+  const ticket_id =
+    sp.get("ticketid") || sp.get("ticketId") || sp.get("ticket_id") || "";
+  const sender_id =
+    sp.get("senderid") || sp.get("senderId") || sp.get("sender_id") || "";
   const vehicle_type_raw =
-    sp.get("vehicleType") || sp.get("vehicle_type") || "any";
+    sp.get("vehicletype") ||
+    sp.get("vehicleType") ||
+    sp.get("vehicle_type") ||
+    "any";
   const token = sp.get("token") || "";
   const location_raw = sp.get("location") || "any";
   const question = sp.get("question") || ""; // ✅ NEW
