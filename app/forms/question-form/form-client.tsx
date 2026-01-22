@@ -35,25 +35,28 @@ function titleCase(str: string) {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+type Ticket = {
+  sender_id: string;
+  question: string;
+  vehicle_type: string;
+  location: string;
+  ticket_id: string;
+  status?: string;
+  createdAt?: string;
+};
+
 export default function FormClient() {
   const sp = useSearchParams();
 
-  // ✅ Query params
+  // ✅ ONLY THESE TWO PARAMS ARE REQUIRED
   const ticket_id =
     sp.get("ticketid") || sp.get("ticketId") || sp.get("ticket_id") || "";
-  const sender_id =
-    sp.get("senderid") || sp.get("senderId") || sp.get("sender_id") || "";
-  const vehicle_type_raw =
-    sp.get("vehicletype") ||
-    sp.get("vehicleType") ||
-    sp.get("vehicle_type") ||
-    "any";
   const token = sp.get("token") || "";
-  const location_raw = sp.get("location") || "any";
-  const question = sp.get("question") || ""; // ✅ NEW
 
-  const vehicle_type = titleCase(vehicle_type_raw);
-  const location = titleCase(location_raw);
+  // ✅ Ticket fetch state
+  const [ticket, setTicket] = React.useState<Ticket | null>(null);
+  const [ticketLoading, setTicketLoading] = React.useState(true);
+  const [ticketError, setTicketError] = React.useState<string | null>(null);
 
   // ✅ Form state
   const [mode, setMode] = React.useState<Mode>("text");
@@ -67,12 +70,11 @@ export default function FormClient() {
     text: string;
   } | null>(null);
 
+  // ✅ UI helpers
   const showAction = mode === "action" || mode === "both";
   const showAnswer = mode !== "action";
 
-  const title = `Question from ${location} for ${vehicle_type}`;
-
-  // ✅ Client side auth check (UI only)
+  // ✅ Client-side auth check (UI only)
   if (!token) {
     return (
       <main className="mx-auto max-w-xl p-8">
@@ -82,10 +84,104 @@ export default function FormClient() {
     );
   }
 
+  // ✅ Fetch ticket info from DB
+  React.useEffect(() => {
+    async function loadTicket() {
+      if (!ticket_id || !token) {
+        setTicketLoading(false);
+        setTicketError("Missing ticket_id or token in URL.");
+        return;
+      }
+
+      setTicketLoading(true);
+      setTicketError(null);
+
+      try {
+        const res = await fetch(
+          `/api/ticket?ticket_id=${encodeURIComponent(
+            ticket_id,
+          )}&token=${encodeURIComponent(token)}`,
+          { cache: "no-store" },
+        );
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          if (res.status === 404) {
+            setTicket(null);
+            setTicketError("Ticket Not Exist ❌");
+          } else {
+            setTicket(null);
+            setTicketError(data?.error || "Failed to load ticket");
+          }
+          return;
+        }
+
+        // ✅ Expected API: { exists: true, ticket: {...} }
+        setTicket(data?.ticket || null);
+
+        if (!data?.ticket) {
+          setTicketError("Ticket Not Exist ❌");
+        }
+      } catch (e: any) {
+        setTicket(null);
+        setTicketError(e?.message || "Failed to load ticket");
+      } finally {
+        setTicketLoading(false);
+      }
+    }
+
+    loadTicket();
+  }, [ticket_id, token]);
+
+  // ✅ Loading state
+  if (ticketLoading) {
+    return (
+      <main className="mx-auto max-w-xl p-8">
+        <h2 className="text-2xl font-bold">Loading ticket...</h2>
+        <p className="text-muted-foreground mt-2">
+          Please wait... 🧠🔍 MongoDB searching...
+        </p>
+      </main>
+    );
+  }
+
+  // ✅ Ticket not found or error
+  if (ticketError) {
+    return (
+      <main className="mx-auto max-w-xl p-8">
+        <h2 className="text-2xl font-bold">❌ {ticketError}</h2>
+        <p className="text-muted-foreground mt-2">
+          Please check your ticket id or contact admin.
+        </p>
+
+        <div className="mt-4 rounded-2xl border p-4">
+          <div className="text-xs text-muted-foreground">Ticket ID</div>
+          <div className="font-semibold break-all">{ticket_id || "—"}</div>
+
+          <div className="mt-3 text-xs text-muted-foreground">Token</div>
+          <div className="font-semibold break-all">
+            {token ? "✅ Provided" : "❌ Missing"}
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // ✅ Now ticket is guaranteed
+  const sender_id = ticket?.sender_id || "";
+  const question = ticket?.question || "";
+  const vehicle_type_raw = ticket?.vehicle_type || "any";
+  const location_raw = ticket?.location || "any";
+
+  const vehicle_type = titleCase(vehicle_type_raw);
+  const location = titleCase(location_raw);
+
+  const title = `Question from ${location} for ${vehicle_type}`;
+
   // ✅ submit rules
   const canSubmit =
     !!ticket_id &&
-    !!sender_id &&
     !!token &&
     (mode === "text"
       ? answerText.trim().length > 0
@@ -97,17 +193,19 @@ export default function FormClient() {
     e.preventDefault();
     setMessage(null);
 
-    if (!ticket_id || !sender_id) {
+    if (!ticket_id || !token) {
       setMessage({
         type: "error",
-        text: "Missing ticket_id or sender_id in URL.",
+        text: "Missing ticket_id or token in URL.",
       });
       return;
     }
+
     if (mode === "action" && actionType === "none") {
       setMessage({ type: "error", text: "Please select an action type." });
       return;
     }
+
     if (mode !== "action" && !answerText.trim()) {
       setMessage({ type: "error", text: "Please write an answer." });
       return;
@@ -121,14 +219,10 @@ export default function FormClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ticket_id,
-          sender_id,
-          vehicle_type: vehicle_type_raw,
-          location: location_raw,
-          question, // ✅ send question too
+          token,
           mode,
           action_type: showAction ? actionType : "none",
           answer_text: showAnswer ? answerText : "",
-          token,
         }),
       });
 
@@ -167,12 +261,9 @@ export default function FormClient() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2">
-              Ticket Info{" "}
-              <Badge variant="secondary">{ticket_id || "N/A"}</Badge>
+              Ticket Info <Badge variant="secondary">{ticket_id}</Badge>
             </CardTitle>
-            <CardDescription>
-              Auto-filled from Telegram link query params.
-            </CardDescription>
+            <CardDescription>Loaded from MongoDB by ticket_id.</CardDescription>
           </CardHeader>
 
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -183,6 +274,8 @@ export default function FormClient() {
               label="Token"
               value={token ? "✅ Provided" : "❌ Missing"}
             />
+            <InfoRow label="Status" value={ticket?.status || "—"} />
+            <InfoRow label="Created At" value={ticket?.createdAt || "—"} />
           </CardContent>
         </Card>
       </div>
@@ -220,24 +313,15 @@ export default function FormClient() {
           </CardHeader>
 
           <CardContent>
-            {/* ✅ show Question inside Human Reply */}
-            {question ? (
-              <div className="mb-5 rounded-2xl border p-4 bg-muted/30">
-                <div className="text-xs text-muted-foreground mb-1">
-                  Customer Question
-                </div>
-                <div className="font-semibold leading-relaxed whitespace-pre-wrap">
-                  {question}
-                </div>
+            {/* ✅ Show Question from DB */}
+            <div className="mb-5 rounded-2xl border p-4 bg-muted/30">
+              <div className="text-xs text-muted-foreground mb-1">
+                Customer Question
               </div>
-            ) : (
-              <div className="mb-5 rounded-2xl border p-4 bg-muted/30">
-                <div className="text-xs text-muted-foreground mb-1">
-                  Customer Question
-                </div>
-                <div className="font-semibold">—</div>
+              <div className="font-semibold leading-relaxed whitespace-pre-wrap">
+                {question || "—"}
               </div>
-            )}
+            </div>
 
             <form onSubmit={handleSubmit} className="grid gap-5">
               {/* Mode + Action */}
