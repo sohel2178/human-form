@@ -172,7 +172,7 @@ export default function FormClient() {
   const sender_id = ticket?.sender_id || "";
   const question = ticket?.question || "";
   const vehicle_type_raw = ticket?.vehicle_type || "any";
-  const location_raw = ticket?.location || "any";
+  const location_raw = ticket?.location || "any-where";
 
   const vehicle_type = titleCase(vehicle_type_raw);
   const location = titleCase(location_raw);
@@ -219,6 +219,10 @@ export default function FormClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ticket_id,
+          sender_id,
+          vehicle_type: vehicle_type_raw,
+          location: location_raw,
+          question,
           token,
           mode,
           action_type: showAction ? actionType : "none",
