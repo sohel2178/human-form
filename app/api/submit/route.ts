@@ -5,8 +5,21 @@ export async function POST(req: Request) {
     const body = await req.json();
 
     const expected = (process.env.FORM_ACCESS_TOKEN || "").trim();
+    const received = String(body?.token || "").trim();
 
-    const received = (body.token || "").trim();
+    console.log("DEBUG /api/submit token:", {
+      expectedExists: !!expected,
+      expectedLen: expected.length,
+      expectedStart: expected.slice(0, 6),
+      expectedEnd: expected.slice(-6),
+
+      receivedExists: !!received,
+      receivedLen: received.length,
+      receivedStart: received.slice(0, 6),
+      receivedEnd: received.slice(-6),
+
+      keys: Object.keys(body || {}),
+    });
 
     const expectedAlt = expected.replace(/_/g, ""); // Telegram version
     const receivedAlt = received.replace(/_/g, "");
