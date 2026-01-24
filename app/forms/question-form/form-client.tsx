@@ -26,7 +26,13 @@ import {
 } from "@/components/ui/select";
 
 type Mode = "text" | "action" | "both";
-type ActionType = "demo_video" | "app_screenshot" | "device_photo" | "none";
+type ActionType =
+  | "demo_video"
+  | "app_screenshot"
+  | "device_photo"
+  | "lisence"
+  | "battery_feature"
+  | "none";
 
 function titleCase(str: string) {
   return (str || "")
@@ -381,6 +387,10 @@ export default function FormClient() {
                         app_screenshot
                       </SelectItem>
                       <SelectItem value="device_photo">device_photo</SelectItem>
+                      <SelectItem value="lisence">lisence</SelectItem>
+                      <SelectItem value="battery_feature">
+                        battery_feature
+                      </SelectItem>
                       <SelectItem value="none">none</SelectItem>
                     </SelectContent>
                   </Select>
